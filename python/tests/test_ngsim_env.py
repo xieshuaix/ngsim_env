@@ -8,7 +8,8 @@ from julia_env.julia_env import JuliaEnv
 class TestNGSIMEnv(unittest.TestCase):
 
     def test_ngsim_env(self):
-        basedir = os.path.expanduser('~/.julia/packages/NGSIM/9OYUa/data')
+        # OPF1x in the following path might need to be adapted for other platforms, device and NGSIM version
+        basedir = os.path.expanduser('~/.julia/packages/NGSIM/OPF1x/data')
         filename = 'trajdata_i80_trajectories-0400-0415.txt'
         filepaths = [os.path.join(basedir, filename)]
         env = JuliaEnv(
