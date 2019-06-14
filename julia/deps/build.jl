@@ -30,9 +30,6 @@ end
 if !in("Records", packages)
     Pkg.add(PackageSpec(url="https://github.com/sisl/Records.jl.git"))
 end
-if !in("NGSIM", packages)
-    Pkg.add(PackageSpec(url="https://github.com/sisl/NGSIM.jl.git"))
-end
 if !in("BayesNets", packages)
     Pkg.add(PackageSpec(url="https://github.com/sisl/BayesNets.jl.git"))
 end
@@ -44,5 +41,8 @@ if !in("AutoViz", packages)
 end
 if !in("AutoRisk", packages)
     Pkg.add(PackageSpec(url="https://github.com/sisl/AutoRisk.jl.git", rev="v0.7fixes"))
+end
+if !in("NGSIM", packages)
+    Pkg.add(PackageSpec(url="https://github.com/sisl/NGSIM.jl.git"))
 end
 
