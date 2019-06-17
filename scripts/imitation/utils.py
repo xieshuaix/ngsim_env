@@ -1,7 +1,7 @@
 
 import h5py
 import numpy as np
-import os
+import os, pdb
 import tensorflow as tf
 
 from rllab.envs.base import EnvSpec
@@ -34,7 +34,7 @@ from julia_env.julia_env import JuliaEnv
 
 '''
 Const
-'''
+
 NGSIM_FILENAME_TO_ID = {
     'trajdata_i101_trajectories-0750am-0805am.txt': 1,
     'trajdata_i101_trajectories-0805am-0820am.txt': 2,
@@ -42,6 +42,10 @@ NGSIM_FILENAME_TO_ID = {
     'trajdata_i80_trajectories-0400-0415.txt': 4,
     'trajdata_i80_trajectories-0500-0515.txt': 5,
     'trajdata_i80_trajectories-0515-0530.txt': 6
+}'''
+NGSIM_FILENAME_TO_ID = {
+    'trajdata_i101_trajectories-0750am-0805am.txt': 1,
+    'trajdata_i101-22agents-0750am-0805am.txt' : 1
 }
 
 '''
@@ -118,10 +122,10 @@ def build_ngsim_env(
         args,
         exp_dir='/tmp', 
         alpha=0.001,
-        vectorize=False,
+        vectorize=True,
         render_params=None,
         videoMaking=False):
-    basedir = os.path.expanduser('~/.julia/packages/NGSIM/9OYUa/data')
+    basedir = os.path.expanduser('~/.julia/packages/NGSIM/OPF1x/data/')
     filepaths = [os.path.join(basedir, args.ngsim_filename)]
     if render_params is None:
         render_params = dict(
@@ -160,7 +164,7 @@ def build_ngsim_env(
     else:
         env_id = 'NGSIMEnv'
         normalize_wrapper = normalize_env
-
+    print(env_params)
     env = JuliaEnv(
         env_id=env_id,
         env_params=env_params,
@@ -184,7 +188,6 @@ def build_critic(args, data, env, writer=None):
         batch_size=args.critic_batch_size,
         flat_recurrent=args.policy_recurrent
     )
-
     critic_network = ObservationActionMLP(
         name='critic', 
         hidden_layer_dims=args.critic_hidden_layer_dims,
@@ -221,6 +224,7 @@ def build_policy(args, env, latent_sampler=None):
                 hidden_dim=args.recurrent_hidden_dim,
             )
         else:
+            print("GaussianLatentVarMLPPolicy")
             policy = GaussianLatentVarMLPPolicy(
                 name="policy",
                 latent_sampler=latent_sampler,
@@ -230,6 +234,7 @@ def build_policy(args, env, latent_sampler=None):
             )
     else:
         if args.policy_recurrent:
+            print("GaussianGRUPolicy")
             policy = GaussianGRUPolicy(
                 name="policy",
                 env_spec=env.spec,
@@ -238,6 +243,7 @@ def build_policy(args, env, latent_sampler=None):
                 learn_std=True
             )
         else:
+            print("GaussianMLPPolicy")
             policy = GaussianMLPPolicy(
                 name="policy",
                 env_spec=env.spec,
@@ -266,7 +272,7 @@ def build_recognition_model(args, env, writer=None):
             dataset=recognition_dataset, 
             network=recognition_network,
             variable_type='categorical',
-            latent_dim=args.latent_dim,
+            latent_dim=args.latent_dim,z
             optimizer=tf.train.AdamOptimizer(args.recognition_learning_rate),
             n_train_epochs=args.n_recognition_train_epochs,
             summary_writer=writer,
@@ -437,9 +443,12 @@ def normalize_range(x, low, high):
     return x
 
 def load_x_feature_names(filepath, ngsim_filename):
+    print(filepath)
     f = h5py.File(filepath, 'r')
     xs = []
+
     traj_id = NGSIM_FILENAME_TO_ID[ngsim_filename]
+
     # in case this nees to allow for multiple files in the future
     traj_ids = [traj_id]
     for i in traj_ids:
@@ -447,6 +456,7 @@ def load_x_feature_names(filepath, ngsim_filename):
             xs.append(f[str(i)])
         else:
             raise ValueError('invalid key to trajectory data: {}'.format(i))
+    
     x = np.concatenate(xs)
     feature_names = f.attrs['feature_names']
     return x, feature_names

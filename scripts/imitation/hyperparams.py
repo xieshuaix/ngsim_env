@@ -1,10 +1,3 @@
-'''
-default hyperparameters for training
-these are build as args to allow for command line options 
-these args are also saved along with parameters during training to 
-allow for rebuilding everything with the same settings
-'''
-
 import argparse
 import numpy as np
 
