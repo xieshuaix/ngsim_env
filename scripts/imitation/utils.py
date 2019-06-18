@@ -1,8 +1,8 @@
-
 import h5py
 import numpy as np
 import os, pdb
 import tensorflow as tf
+import glob
 
 from rllab.envs.base import EnvSpec
 from rllab.envs.normalized_env import normalize as normalize_env
@@ -45,15 +45,23 @@ NGSIM_FILENAME_TO_ID = {
 }'''
 NGSIM_FILENAME_TO_ID = {
     'trajdata_i101_trajectories-0750am-0805am.txt': 1,
-    'trajdata_i101-22agents-0750am-0805am.txt' : 1
+    'trajdata_i101-22agents-0750am-0805am.txt': 1
 }
 
 '''
 Common 
 '''
-def maybe_mkdir(dirpath):
-    if not os.path.exists(dirpath):
-        os.mkdir(dirpath)
+
+
+def print_list(ls):
+    for idx, l in enumerate(ls):
+        print('{}: {}'.format(idx, l))
+
+
+def maybe_mkdir(path):
+    if not os.path.exists(path):
+        os.mkdir(path)
+
 
 def partition_list(lst, n):
     sublists = [[] for _ in range(n)]
@@ -61,24 +69,29 @@ def partition_list(lst, n):
         sublists[i % n].append(v)
     return sublists
 
+
 def str2bool(v):
     if v.lower() == 'true':
         return True
     return False
 
+
 def write_trajectories(filepath, trajs):
     np.savez(filepath, trajs=trajs)
 
+
 def load_trajectories(filepath):
     return np.load(filepath)['trajs']
+
 
 def filename2label(fn):
     s = fn.find('-') + 1
     e = fn.rfind('_')
     return fn[s:e]
 
-def load_trajs_labels(directory, files_to_use=[0,1,2,3,4,5]):
-    filenames = [
+
+def load_trajs_labels(directory, files_to_use=[0, 1, 2, 3, 4, 5]):
+    file_names = [
         'trajdata_i101_trajectories-0750am-0805am_trajectories.npz',
         'trajdata_i101_trajectories-0805am-0820am_trajectories.npz',
         'trajdata_i101_trajectories-0820am-0835am_trajectories.npz',
@@ -86,11 +99,12 @@ def load_trajs_labels(directory, files_to_use=[0,1,2,3,4,5]):
         'trajdata_i80_trajectories-0500-0515_trajectories.npz',
         'trajdata_i80_trajectories-0515-0530_trajectories.npz'
     ]
-    filenames = [filenames[i] for i in files_to_use]
-    labels = [filename2label(fn) for fn in filenames]
-    filepaths = [os.path.join(directory, fn) for fn in filenames]
-    trajs = [load_trajectories(fp) for fp in filepaths]
+    file_names = [file_names[i] for i in files_to_use]
+    labels = [filename2label(fn) for fn in file_names]
+    file_paths = [os.path.join(directory, fn) for fn in file_names]
+    trajs = [load_trajectories(fp) for fp in file_paths]
     return trajs, labels
+
 
 '''
 Component build functions
@@ -103,6 +117,8 @@ source code as much as possible, so it will have to do for now.
 Add a reset(self, kwargs**) function to the normalizing environment
 https://stackoverflow.com/questions/972/adding-a-method-to-an-existing-object-instance
 '''
+
+
 def normalize_env_reset_with_kwargs(self, **kwargs):
     ret = self._wrapped_env.reset(**kwargs)
     if self._normalize_obs:
@@ -110,30 +126,32 @@ def normalize_env_reset_with_kwargs(self, **kwargs):
     else:
         return ret
 
+
 def add_kwargs_to_reset(env):
     normalize_env = hgail.misc.utils.extract_normalizing_env(env)
     if normalize_env is not None:
         normalize_env.reset = normalize_env_reset_with_kwargs.__get__(normalize_env)
 
+
 '''end of hack, back to our regularly scheduled programming'''
 
-# Raunak adding an input argument for multiagent video making
-def build_ngsim_env(
-        args,
-        exp_dir='/tmp', 
-        alpha=0.001,
-        vectorize=True,
-        render_params=None,
-        videoMaking=False):
+
+def build_ngsim_env(args,
+                    exp_dir='/tmp',
+                    alpha=0.001,
+                    vectorize=True,
+                    render_params=None,
+                    make_video=False):
+    # TODO: pass params as argument
     basedir = os.path.expanduser('~/.julia/packages/NGSIM/OPF1x/data/')
-    filepaths = [os.path.join(basedir, args.ngsim_filename)]
+    file_paths = [os.path.join(basedir, args.ngsim_filename)]
     if render_params is None:
         render_params = dict(
             viz_dir=os.path.join(exp_dir, 'imitate/viz'),
             zoom=5.
         )
     env_params = dict(
-        trajectory_filepaths=filepaths,
+        trajectory_filepaths=file_paths,
         H=args.env_H,
         primesteps=args.env_primesteps,
         action_repeat=args.env_action_repeat,
@@ -151,9 +169,9 @@ def build_ngsim_env(
 
     if args.env_multiagent:
         env_id = 'MultiagentNGSIMEnv'
-        if videoMaking:
-            print('RAUNAK BHATTACHARRYA VIDEO MAKER IS ON')
-            env_id='MultiagentNGSIMEnvVideoMaker'
+        if make_video:
+            print('VIDEO MAKER IS ON')
+            env_id = 'MultiagentNGSIMEnvVideoMaker'
         alpha = alpha * args.n_envs
         normalize_wrapper = vectorized_normalized_env
     elif vectorize:
@@ -164,7 +182,7 @@ def build_ngsim_env(
     else:
         env_id = 'NGSIMEnv'
         normalize_wrapper = normalize_env
-    print(env_params)
+    print('Building environment {}...'.format(env_id))
     env = JuliaEnv(
         env_id=env_id,
         env_params=env_params,
@@ -174,7 +192,10 @@ def build_ngsim_env(
     low, high = env.action_space.low, env.action_space.high
     env = TfEnv(normalize_wrapper(env, normalize_obs=True, obs_alpha=alpha))
     add_kwargs_to_reset(env)
+    print('Built environment {}, params:'.format(env_id))
+    print(env_params)
     return env, low, high
+
 
 def build_critic(args, data, env, writer=None):
     if args.use_critic_replay_memory:
@@ -183,20 +204,20 @@ def build_critic(args, data, env, writer=None):
         critic_replay_memory = None
 
     critic_dataset = CriticDataset(
-        data, 
+        data,
         replay_memory=critic_replay_memory,
         batch_size=args.critic_batch_size,
         flat_recurrent=args.policy_recurrent
     )
     critic_network = ObservationActionMLP(
-        name='critic', 
+        name='critic',
         hidden_layer_dims=args.critic_hidden_layer_dims,
         dropout_keep_prob=args.critic_dropout_keep_prob
     )
     critic = WassersteinCritic(
         obs_dim=env.observation_space.flat_dim,
         act_dim=env.action_space.flat_dim,
-        dataset=critic_dataset, 
+        dataset=critic_dataset,
         network=critic_network,
         gradient_penalty=args.gradient_penalty,
         optimizer=tf.train.RMSPropOptimizer(args.critic_learning_rate),
@@ -207,6 +228,7 @@ def build_critic(args, data, env, writer=None):
         debug_nan=True
     )
     return critic
+
 
 def build_policy(args, env, latent_sampler=None):
     if args.use_infogail:
@@ -255,6 +277,7 @@ def build_policy(args, env, latent_sampler=None):
             )
     return policy
 
+
 def build_recognition_model(args, env, writer=None):
     if args.use_infogail:
         recognition_dataset = RecognitionDataset(
@@ -262,17 +285,17 @@ def build_recognition_model(args, env, writer=None):
             flat_recurrent=args.policy_recurrent
         )
         recognition_network = ObservationActionMLP(
-            name='recog', 
+            name='recog',
             hidden_layer_dims=args.recognition_hidden_layer_dims,
             output_dim=args.latent_dim
         )
         recognition_model = RecognitionModel(
             obs_dim=env.observation_space.flat_dim,
             act_dim=env.action_space.flat_dim,
-            dataset=recognition_dataset, 
+            dataset=recognition_dataset,
             network=recognition_network,
             variable_type='categorical',
-            latent_dim=args.latent_dim,z
+            latent_dim=args.latent_dim,
             optimizer=tf.train.AdamOptimizer(args.recognition_learning_rate),
             n_train_epochs=args.n_recognition_train_epochs,
             summary_writer=writer,
@@ -282,13 +305,15 @@ def build_recognition_model(args, env, writer=None):
         recognition_model = None
     return recognition_model
 
+
 def build_baseline(args, env):
     return GaussianMLPBaseline(env_spec=env.spec)
+
 
 def build_reward_handler(args, writer=None):
     reward_handler = hgail.misc.utils.RewardHandler(
         use_env_rewards=args.reward_handler_use_env_rewards,
-        max_epochs=args.reward_handler_max_epochs, # epoch at which final scales are used
+        max_epochs=args.reward_handler_max_epochs,  # epoch at which final scales are used
         critic_final_scale=args.reward_handler_critic_final_scale,
         recognition_initial_scale=0.,
         recognition_final_scale=args.reward_handler_recognition_final_scale,
@@ -299,6 +324,7 @@ def build_reward_handler(args, writer=None):
     )
     return reward_handler
 
+
 def build_hierarchy(args, env, writer=None):
     levels = []
 
@@ -307,7 +333,7 @@ def build_hierarchy(args, env, writer=None):
         dim=args.latent_dim,
         scheduler=ConstantIntervalScheduler(k=args.env_H)
     )
-    for level_idx in [1,0]:
+    for level_idx in [1, 0]:
         # wrap env in different spec depending on level
         if level_idx == 0:
             level_env = env
@@ -317,7 +343,7 @@ def build_hierarchy(args, env, writer=None):
                 action_space=Discrete(args.latent_dim),
                 observation_space=env.observation_space
             )
-            
+
         with tf.variable_scope('level_{}'.format(level_idx)):
             # recognition_model = build_recognition_model(args, level_env, writer)
             recognition_model = None
@@ -379,9 +405,11 @@ def build_hierarchy(args, env, writer=None):
     # so reverse the list before returning it
     return list(reversed(levels))
 
+
 '''
 setup
 '''
+
 
 def latest_snapshot(exp_dir, phase='train'):
     snapshot_dir = os.path.join(exp_dir, phase, 'log')
@@ -389,9 +417,10 @@ def latest_snapshot(exp_dir, phase='train'):
     latest = sorted(snapshots, reverse=True)[0]
     return latest
 
+
 def set_up_experiment(
-        exp_name, 
-        phase, 
+        exp_name,
+        phase,
         exp_home='../../data/experiments/',
         snapshot_gap=5):
     maybe_mkdir(exp_home)
@@ -408,9 +437,11 @@ def set_up_experiment(
     logger.add_text_output(log_filepath)
     return exp_dir
 
+
 '''
 data utilities
 '''
+
 
 def compute_lengths(arr):
     sums = np.sum(np.array(arr), axis=2)
@@ -423,6 +454,7 @@ def compute_lengths(arr):
             lengths.append(zero_idxs[0])
     return np.array(lengths)
 
+
 def normalize(x, clip_std_multiple=np.inf):
     mean = np.mean(x, axis=0, keepdims=True)
     x = x - mean
@@ -433,6 +465,7 @@ def normalize(x, clip_std_multiple=np.inf):
     x = x / std
     return x, mean, std
 
+
 def normalize_range(x, low, high):
     low = np.array(low)
     high = np.array(high)
@@ -442,44 +475,46 @@ def normalize_range(x, low, high):
     x = np.clip(x, -1, 1)
     return x
 
-def load_x_feature_names(filepath, ngsim_filename):
-    print(filepath)
+
+def get_file_id(file_names):
+    return [NGSIM_FILENAME_TO_ID[name] for name in file_names]
+
+
+def load_x_feature_names(filepath, traj_ids):
     f = h5py.File(filepath, 'r')
     xs = []
-
-    traj_id = NGSIM_FILENAME_TO_ID[ngsim_filename]
-
-    # in case this nees to allow for multiple files in the future
-    traj_ids = [traj_id]
-    for i in traj_ids:
-        if str(i) in f.keys():
-            xs.append(f[str(i)])
+    for traj_id in traj_ids:
+        if str(traj_id) in f.keys():
+            xs.append(f[str(traj_id)])
         else:
-            raise ValueError('invalid key to trajectory data: {}'.format(i))
-    
+            raise ValueError('invalid key to trajectory data: {}'.format(traj_id))
+
     x = np.concatenate(xs)
     feature_names = f.attrs['feature_names']
     return x, feature_names
 
-def load_data(
-        filepath,
-        act_keys=['accel', 'turn_rate_global'],
-        ngsim_filename='trajdata_i101_trajectories-0750am-0805am.txt',
-        debug_size=None,
-        min_length=50,
-        normalize_data=True,
-        shuffle=False,
-        act_low=-1,
-        act_high=1,
-        clip_std_multiple=np.inf):
-    
+
+def load_data(filepath='',
+              act_keys=None,
+              file_names=None,
+              debug_size=None,
+              min_length=50,
+              normalize_data=True,
+              shuffle=False,
+              act_low=-1,
+              act_high=1,
+              clip_std_multiple=np.inf):
     # loading varies based on dataset type
-    x, feature_names = load_x_feature_names(filepath, ngsim_filename)
+    if file_names is None:
+        file_names = []
+    if act_keys is None:
+        act_keys = ['accel', 'turn_rate_global']
+    x, feature_names = load_x_feature_names(filepath, get_file_id(file_names=file_names))
 
     # optionally keep it to a reasonable size
     if debug_size is not None:
         x = x[:debug_size]
-       
+
     if shuffle:
         idxs = np.random.permutation(len(x))
         x = x[idxs]
@@ -488,19 +523,19 @@ def load_data(
     lengths = compute_lengths(x)
 
     # flatten the dataset to (n_samples, n_features)
-    # taking only the valid timesteps from each sample
-    # i.e., throw out timeseries information
+    # taking only the valid time steps from each sample
+    # i.e., throw out time  series information
     xs = []
     for i, l in enumerate(lengths):
         # enforce minimum length constraint
         if l >= min_length:
-            xs.append(x[i,:l])
+            xs.append(x[i, :l])
     x = np.concatenate(xs)
 
     # split into observations and actions
     # redundant because the environment is not able to extract actions
     obs = x
-    act_idxs = [i for (i,n) in enumerate(feature_names) if n in act_keys]
+    act_idxs = [i for (i, n) in enumerate(feature_names) if n in act_keys]
     act = x[:, act_idxs]
 
     if normalize_data:
