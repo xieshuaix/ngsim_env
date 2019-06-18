@@ -24,9 +24,9 @@ import rls, pdb
 import validate_utils
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='validation settings')
+    parser = argparse.ArgumentParser(description='Convergence check options')
     parser.add_argument('--n_proc', type=int, default=1)
-    parser.add_argument('--exp_dir', type=str, default='../../data/experiments/multiagent_curr/')
+    parser.add_argument('--exp_dir', type=str, default='../../data/agen/')
     parser.add_argument('--params_filename', type=str, default='itr_200.npz')
     parser.add_argument('--n_runs_per_ego_id', type=int, default=10)
     parser.add_argument('--use_hgail', type=str2bool, default=False)
@@ -78,7 +78,7 @@ if __name__ == '__main__':
         env, _, _ = utils.build_ngsim_env(args, alpha=0.)
 
         # policy = policy_fn(args, env)
-        summary_writer = tf.summary.FileWriter(os.path.join('multiagent_curr', 'imitate', 'summaries'))
+        summary_writer = tf.summary.FileWriter(os.path.join('agen', 'imitate', 'summaries'))
         data = validate_utils.get_ground_truth()
         
         critic = utils.build_critic(args, data, env, summary_writer)
