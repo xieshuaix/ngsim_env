@@ -106,7 +106,7 @@ function extract_ngsim_features(
         offset = 500, # from ends of the trajectories
         prime = 10,
         maxframes = nothing; # nothing for no max
-        output_filename = "ngsim.h5",
+        output_filepath,
         n_expert_files = 1) # number of time periods for which to extract.
 
     ext = build_feature_extractor()
@@ -130,8 +130,7 @@ function extract_ngsim_features(
         )
     end
 
-    output_filepath = joinpath("../data/trajectories/", output_filename)
-    println("output filepath: $(output_filepath)")
+
     write_features(features, output_filepath, ext)
 
 end
@@ -166,7 +165,13 @@ end
 
 
 # NGSIM
-extract_ngsim_features(output_filename="ngsim_all.h5", n_expert_files=6)
+output_filepath = expanduser("../data/trajectories/ngsim_all.h5")
+println("output filepath: $(output_filepath)")
+output_filedir = splitdir(output_filepath)[1]
+if !isdir(output_filedir)
+    mkpath(output_filedir)
+end
+extract_ngsim_features(output_filepath=output_filepath, n_expert_files=6)
 
 # DEBUG
 # trajdata_filepath = "/Users/wulfebw/.julia/v0.5/NGSIM/data/2_simple.txt"
