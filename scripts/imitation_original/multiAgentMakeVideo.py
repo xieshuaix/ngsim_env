@@ -117,7 +117,7 @@ def create_render_map(model_labels, model_args_filepaths, model_params_filepaths
         
         # load env and params
         # Raunak adding in an argument for videmaking
-        # See build_ngsim_env in utils.py for what this does
+        # See build_ngsim_env in utils_hgail.py for what this does
         env, _, _ = utils.build_ngsim_env(args,videoMaking=True)
         print("Raunak says: This is the videmaker reporting")
         normalized_env = hgail.misc.utils.extract_normalizing_env(env)
