@@ -14,7 +14,8 @@ package_names = [
     "PyCall",
     "PyPlot",
     "HDF5",
-    "LinearAlgebra"
+    "LinearAlgebra",
+    "SparseArrays"
 ]
 for name in package_names
     if !in(name, packages)
